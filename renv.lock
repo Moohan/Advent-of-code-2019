@@ -240,6 +240,20 @@
       "Repository": "CRAN",
       "Hash": "04552808fd065fdf0fec7bad340eb83c"
     },
+    "stringi": {
+      "Package": "stringi",
+      "Version": "1.4.3",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "113506f116db9dd5bd1caf46884e0647"
+    },
+    "stringr": {
+      "Package": "stringr",
+      "Version": "1.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "41d6310ad18bd019a203d7adc496a28b"
+    },
     "testthat": {
       "Package": "testthat",
       "Version": "2.3.0",
