@@ -1,29 +1,30 @@
 library(testthat)
 library(readr)
 library(stringr)
+library(dplyr)
 library(purrr)
 
 # Part 1 ------------------------------------------------------------------
 
 run_intcode <- function(intcode){
   opcode <- 1
-  
+
   while (intcode[opcode] != 99) {
     if (intcode[opcode] == 1) {
       # Addition
-      intcode[intcode[opcode + 3] + 1] <- 
-        intcode[intcode[opcode + 1] + 1] + 
+      intcode[intcode[opcode + 3] + 1] <-
+        intcode[intcode[opcode + 1] + 1] +
         intcode[intcode[opcode + 2] + 1]
     } else if (intcode[opcode] == 2) {
       # Multiplication
-      intcode[intcode[opcode + 3] + 1] <- 
-        intcode[intcode[opcode + 1] + 1] * 
+      intcode[intcode[opcode + 3] + 1] <-
+        intcode[intcode[opcode + 1] + 1] *
         intcode[intcode[opcode + 2] + 1]
     }
     # Advance
     opcode <- opcode + 4
   }
-  
+
   return(intcode)
 }
 
@@ -41,7 +42,7 @@ test_that("intcode works", {
 initial_input <- (read_lines("data/day2-1") %>%
   str_split(","))
 
-initial_input <- as.integer(input[[1]])
+initial_input <- as.integer(initial_input[[1]])
 
 input <- initial_input
 input[2] <- 12
@@ -49,18 +50,22 @@ input[3] <- 2
 
 run_intcode(input)[1]
 
-for (noun in 0:99) {
-  for (verb in 0:99){
-    input <- initial_input
-    input[2] <- noun
-    input[3] <- verb
-    
-    if (run_intcode(input, output_only = TRUE) == 19690720)  {
-      break()
-    } 
-  }
+
+# Part 2 ------------------------------------------------------------------
+modify_input <- function(noun, verb) {
+  input <- initial_input
+  input[2] <- noun
+  input[3] <- verb
+
+  return(input)
 }
 
-print(noun, verb)
+combination <- 0:99 %>%
+list("noun" = ., "verb" = .) %>%
+  cross(.filter = function(noun, verb) {
+     modify_input(noun, verb)
+    intcode <- modify_input(noun, verb) %>% run_intcode()
+    return(19690720 != intcode[1])
+  })
 
-  
+
