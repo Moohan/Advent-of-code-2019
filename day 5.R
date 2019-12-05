@@ -9,40 +9,79 @@ read_opcode <- function(intcode, pointer) {
   return(opcode %% 100)
 }
 
-position_mode <- function(intcode, pointer, parameter) {
+get_parameter <- function(intcode, pointer, parameter) {
   parameters <- intcode[pointer] %/% 100 %>%
     as.character() %>%
     str_pad(width = 3, side = "left", pad = "0")
 
-  return(as.integer(str_sub(parameters, 4 - parameter, 4 - parameter)) == 0)
+  return(as.integer(str_sub(parameters, 4 - parameter, 4 - parameter)))
+}
+
+position_mode <- function(intcode, pointer, parameter) {
+  return(get_parameter(intcode, pointer, parameter) == 0)
 }
 
 do_operation <- function(intcode, pointer, operation) {
+  first_param <- if_else(position_mode(intcode, pointer, 1),
+                         intcode[abs(intcode[pointer + 1]) + 1],
+                         intcode[pointer + 1])
+  second_param <- if_else(position_mode(intcode, pointer, 2),
+                          intcode[abs(intcode[pointer + 2]) + 1],
+                          intcode[pointer + 2])
+
+
   if (position_mode(intcode, pointer, 3)) {
     intcode[intcode[pointer + 3] + 1] <-
       operation(
-        if_else(position_mode(intcode, pointer, 1),
-          intcode[abs(intcode[pointer + 1]) + 1],
-          intcode[pointer + 1]
-        ),
-        if_else(position_mode(intcode, pointer, 2),
-          intcode[abs(intcode[pointer + 2]) + 1],
-          intcode[pointer + 2]
-        )
+        first_param,
+        second_param
       )
   } else {
     intcode[pointer + 3] <-
       operation(
-        if_else(position_mode(intcode, pointer, 1),
-          intcode[abs(intcode[pointer + 1]) + 1],
-          intcode[pointer + 1]
-        ),
-        if_else(position_mode(intcode, pointer, 2),
-          intcode[abs(intcode[pointer + 2]) + 1],
-          intcode[pointer + 2]
-        )
+        first_param,
+        second_param
       )
   }
+  return(intcode)
+}
+
+do_jump <- function(intcode, pointer, jump_if) {
+  first_param <- if_else(position_mode(intcode, pointer, 1),
+                         intcode[abs(intcode[pointer + 1]) + 1],
+                         intcode[pointer + 1])
+  second_param <- if_else(position_mode(intcode, pointer, 2),
+                          intcode[abs(intcode[pointer + 2]) + 1],
+                          intcode[pointer + 2])
+
+
+  if (xor(first_param == 0,
+          jump_if)) {
+    pointer <- second_param
+  } else {
+    pointer <- pointer + 3
+  }
+
+  return(pointer)
+}
+
+do_comparison <- function(intcode, pointer, comparison) {
+  first_param <- if_else(position_mode(intcode, pointer, 1),
+                         intcode[abs(intcode[pointer + 1]) + 1],
+                         intcode[pointer + 1])
+  second_param <- if_else(position_mode(intcode, pointer, 2),
+                          intcode[abs(intcode[pointer + 2]) + 1],
+                          intcode[pointer + 2])
+  to_store <- if_else(comparison(first_param, second_param),
+                      1,
+                      0)
+
+  if (position_mode(intcode, pointer, 3)) {
+    intcode[intcode[pointer + 3] + 1] <- to_store
+  } else {
+    intcode[pointer + 3] <- to_store
+  }
+
   return(intcode)
 }
 
@@ -82,6 +121,16 @@ run_intcode <- function(intcode) {
       ))
       # Advance
       pointer <- pointer + 2
+    } else if (opcode == 5) {
+      pointer <- do_jump(intcode, pointer, jump_if = TRUE)
+    } else if (opcode == 6) {
+      pointer <- do_jump(intcode, pointer, jump_if = FALSE)
+    } else if (opcode == 7) {
+      intcode <- do_comparison(intcode, pointer, `<`)
+      pointer <- pointer + 4
+    } else if (opcode == 8) {
+      intcode <- do_comparison(intcode, pointer, `==`)
+      pointer <- pointer + 4
     }
   }
   message("Program Halted")
@@ -109,6 +158,7 @@ test_that("old intcode works", {
 })
 
 test_that("new opcodes work", {
+  # Input = 999
   expect_message(
     run_intcode(c(3, 0, 4, 0, 99)),
     "Output is: 999"
@@ -120,6 +170,31 @@ test_that("positional mode works", {
                c(1002, 4,3,4,99))
   expect_equal(run_intcode(c(1101,100,-1,4,0)),
                c(1101,100,-1,4,99))
+})
+
+test_that("comparisons work", {
+  # Input = 8
+  expect_message(run_intcode(c(3,9,8,9,10,9,4,9,99,-1,8)), "Output is: 1")
+  # Input != 8
+  expect_message(run_intcode(c(3,9,8,9,10,9,4,9,99,-1,8)), "Output is: 0")
+  # Input is 0
+  expect_message(run_intcode(c(3,9,7,9,10,9,4,9,99,-1,8)), "Output is: 1")
+  expect_message(run_intcode(c(3,3,1108,-1,8,3,4,3,99)), "Output is: 0")
+  expect_message(run_intcode(c(3,3,1107,-1,8,3,4,3,99)), "Output is: 1")
+})
+
+test_that("jump works", {
+  expect_message(run_intcode(c(3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9)), "Output is: 0")
+
+})
+
+test_that("bid part 2 example", {
+  # Input 7
+  expect_message(run_intcode(c(3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99)), "Output is: 999")
+  # Input 8
+  expect_message(run_intcode(c(3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99)), "Output is: 1000")
+  # Input 9
+  expect_message(run_intcode(c(3,21,1008,21,8,20,1005,20,22,107,8,21,20,1006,20,31,1106,0,36,98,0,0,1002,21,125,20,4,20,1105,1,46,104,999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99)), "Output is: 1001")
 })
 
 initial_input <-
